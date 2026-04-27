@@ -45,53 +45,71 @@ async def call_agent(hospital_name, document_content, postman_content):
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
 
-    # Simple prompt — just the doc + what to do
-    prompt = f"""You are generating a hospital integration config for {hospital_name}.
+    # Simplified prompt with explicit instructions
+    prompt = f"""Generate a generic_config JSON for {hospital_name} hospital integration.
 
-## Input Documentation:
-{document_content}
-
-## TASK:
-1. Read reference configs from: lib/integration_agent/configs/rela_config.json, lib/integration_agent/configs/sarvodaya_config.json
-2. Read codebase files: lib/integrate/implementations/qikwell_generic_shadow_impl.rb, lib/utils/generic_parser.rb
-3. Understand the integration pattern from documentation: Practo Slots + HIS Push
-4. Generate complete generic_config.json for {hospital_name}
-5. Write to: lib/integration_agent/configs/{hospital_slug}_config.json
-6. Bash commands (execute these in order):
-   - mkdir -p lib/integration_agent/configs
-   - git checkout -b {hospital_slug}-integration
-   - git add lib/integration_agent/configs/{hospital_slug}_config.json
-   - git commit -m "Add {hospital_name} integration config"
-   - git push origin {hospital_slug}-integration
-   - gh pr create --base ADT-231-claude-agent --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
-
-Use only: Read, Write, Bash, Glob, Grep tools."""
-
-## HOSPITAL INTEGRATION DOCUMENT
-
+HOSPITAL API DOCUMENTATION:
 {document_content}
 """
     if postman_content:
-        prompt += f"\n\n## POSTMAN COLLECTION\n\n{postman_content}"
+        prompt += f"\n\nPOSTMAN COLLECTION:\n{postman_content}\n"
+
+    prompt += f"""
+STEP-BY-STEP INSTRUCTIONS:
+
+Step 1: Read reference configs
+- Read: lib/integration_agent/configs/rela_config.json
+- Read: lib/integration_agent/configs/sarvodaya_config.json
+
+Step 2: Read implementation files
+- Read: lib/integrate/implementations/qikwell_generic_shadow_impl.rb (focus on create_apt, fetch_uhid, sync_appointment_status methods)
+- Read: lib/utils/generic_parser.rb
+
+Step 3: Generate the config
+- Create a JSON config for {hospital_name}
+- Use Practo Slots + HIS Push pattern (Practo manages slots, push appointments to HIS, poll status)
+- Follow the structure from the reference configs
+- Map fields from the API doc to config structure
+
+Step 4: Save the config
+- Use Write tool to save to: lib/integration_agent/configs/{hospital_slug}_config.json
+
+Step 5: Commit and push
+- Run: mkdir -p lib/integration_agent/configs
+- Run: git checkout -b {hospital_slug}-integration
+- Run: git add lib/integration_agent/configs/{hospital_slug}_config.json
+- Run: git commit -m "Add {hospital_name} integration config"
+- Run: git push origin {hospital_slug}-integration
+
+Step 6: Create PR
+- Run: gh pr create --base ADT-231-claude-agent --title "Add {hospital_name} integration config" --body "Generated config for {hospital_name}"
+
+Only use these tools: Read, Write, Bash, Glob, Grep
+"""
 
     agent_response_parts = []
 
-    async for message in query(
-        prompt=prompt,
-        options=ClaudeAgentOptions(
-            system_prompt=system_prompt,
-            allowed_tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-            permission_mode="bypassPermissions",
-            cwd=REPO_DIR,
-            max_turns=30,
-        ),
-    ):
-        if hasattr(message, 'content'):
-            for block in message.content:
-                if hasattr(block, 'text'):
-                    agent_response_parts.append(block.text)
-        if hasattr(message, 'result'):
-            agent_response_parts.append(str(message.result))
+    try:
+        async for message in query(
+            prompt=prompt,
+            options=ClaudeAgentOptions(
+                system_prompt=system_prompt,
+                allowed_tools=["Read", "Write", "Bash", "Glob", "Grep"],
+                permission_mode="bypassPermissions",
+                cwd=REPO_DIR,
+                max_turns=30,
+            ),
+        ):
+            if hasattr(message, 'content'):
+                for block in message.content:
+                    if hasattr(block, 'text'):
+                        agent_response_parts.append(block.text)
+            if hasattr(message, 'result'):
+                agent_response_parts.append(str(message.result))
+    except Exception as e:
+        logger.error(f"Agent query failed: {str(e)}")
+        agent_response_parts.append(f"ERROR: {str(e)}")
+        raise
 
     full_response = '\n'.join(agent_response_parts)
 
