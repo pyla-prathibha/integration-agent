@@ -23,7 +23,7 @@ async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
     import subprocess
 
-    # Ensure we're on the optimise-fetch-uhid branch
+    # Ensure we're on the optimise-fetch-uhid branch and up to date
     try:
         subprocess.run(
             ['git', 'checkout', 'optimise-fetch-uhid'],
@@ -32,8 +32,15 @@ async def call_agent(hospital_name, document_content, postman_content):
             check=True,
             timeout=30
         )
+        subprocess.run(
+            ['git', 'pull', 'origin', 'optimise-fetch-uhid'],
+            cwd=REPO_DIR,
+            capture_output=True,
+            check=True,
+            timeout=30
+        )
     except Exception as e:
-        logger.warning(f"Could not checkout optimise-fetch-uhid branch: {e}")
+        logger.warning(f"Could not prepare optimise-fetch-uhid branch: {e}")
 
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
@@ -50,7 +57,8 @@ async def call_agent(hospital_name, document_content, postman_content):
 3. Understand the integration pattern from documentation: Practo Slots + HIS Push
 4. Generate complete generic_config.json for {hospital_name}
 5. Write to: lib/integration_agent/configs/{hospital_slug}_config.json
-6. Bash commands only:
+6. Bash commands (execute these in order):
+   - mkdir -p lib/integration_agent/configs
    - git checkout -b {hospital_slug}-integration
    - git add lib/integration_agent/configs/{hospital_slug}_config.json
    - git commit -m "Add {hospital_name} integration config"
