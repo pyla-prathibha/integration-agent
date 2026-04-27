@@ -12,7 +12,6 @@ from .agent_service import run_agent_async
 class DocumentValidator:
     """Validates hospital API documentation before processing."""
     MIN_LENGTH = 200
-    REQUIRED_KEYWORDS = ['api', 'endpoint', 'request', 'response']
     PLACEHOLDER_KEYWORDS = ['test hospitals', 'placeholder', 'lorem ipsum', 'sample doc']
 
     @classmethod
@@ -33,10 +32,6 @@ class DocumentValidator:
         lower_content = content.lower()
         if len(content) < 300 and any(p in lower_content for p in cls.PLACEHOLDER_KEYWORDS):
             return False, "Document appears to be placeholder text. Please provide actual hospital API documentation."
-
-        # Check for required keywords (API details)
-        if not any(kw in lower_content for kw in cls.REQUIRED_KEYWORDS):
-            return False, "Document must contain API details (endpoints, requests, responses, authentication). Please check the requirements above."
 
         return True, None
 

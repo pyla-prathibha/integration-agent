@@ -118,16 +118,6 @@
           return;
         }
 
-        // Check for required keywords
-        const requiredKeywords = ['api', 'endpoint', 'request', 'response'];
-        const hasKeywords = requiredKeywords.some(kw => lowerContent.includes(kw));
-        if (!hasKeywords) {
-          docError.textContent = '❌ Document must contain API details (endpoints, requests, responses).';
-          docError.style.display = 'block';
-          submitBtn.disabled = true;
-          return;
-        }
-
         // All validations passed
         submitBtn.disabled = false;
       } catch (err) {
