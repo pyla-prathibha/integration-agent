@@ -39,15 +39,21 @@ async def call_agent(hospital_name, document_content, postman_content):
     hospital_slug = hospital_name.lower().replace(' ', '_')
 
     # Simple prompt — just the doc + what to do
-    prompt = f"""Generate a complete generic_config JSON for {hospital_name} integration.
+    prompt = f"""You are generating a hospital integration config for {hospital_name}.
 
-STEPS:
-1. Create the lib/integration_agent/configs/ directory if it doesn't exist
-2. Write the config to lib/integration_agent/configs/{hospital_slug}_config.json
-3. Create a git branch named "{hospital_slug}-integration"
-4. Commit the config file with message "Add {hospital_name} integration config"
-5. Push the branch to origin
-6. Create a PR using: gh pr create --title "Add {hospital_name} integration config" --body "Auto-generated integration config for {hospital_name}"
+## Input Documentation:
+{document_content}
+
+## TASK:
+1. Read reference configs: lib/integration_agent/configs/rela_config.json and lib/integration_agent/configs/sarvodaya_config.json
+2. Read the implementation guide: lib/integrate/implementations/qikwell_generic_shadow_impl.rb
+3. Generate a complete generic_config.json for {hospital_name} (integration type is Practo Slots + HIS Push)
+4. Write config to: lib/integration_agent/configs/{hospital_slug}_config.json
+5. Commit: git add lib/integration_agent/configs/{hospital_slug}_config.json && git commit -m "Add {hospital_name} integration config"
+6. Push: git push origin optimise-fetch-uhid
+7. Create PR: gh pr create --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
+
+Only use Read, Write, Edit, Bash, Glob, Grep tools. No other tools."""
 
 ## HOSPITAL INTEGRATION DOCUMENT
 
