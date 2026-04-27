@@ -5,392 +5,134 @@
 
 {% block content %}
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body { background: #f9fafb; }
-
-.root {
-  padding: 2rem;
-  max-width: 660px;
-  margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.header {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.header-icon {
-  width: 48px; height: 48px;
-  border-radius: 10px;
-  background: #1f2937;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  font-size: 24px;
-}
-
-.header-text h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 6px;
-}
-
-.header-text p {
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-.error-banner {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-left: 4px solid #ef4444;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 20px;
-  font-size: 13px;
-  color: #991b1b;
-  display: none;
-}
-.error-banner.show { display: block; }
-
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 1.25rem;
-}
-
-.card.full { grid-column: 1 / -1; }
-
-.card-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: #9ca3af;
-  margin-bottom: 10px;
-  display: flex; align-items: center; gap: 6px;
-}
-
-.req-pill {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: #fef2f2;
-  color: #b91c1c;
-  text-transform: uppercase;
-}
-
-.opt-pill {
-  font-size: 9px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: #f3f4f6;
-  color: #6b7280;
-  text-transform: uppercase;
-}
-
-.text-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #1f2937;
-  background: #f9fafb;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.text-input::placeholder { color: #9ca3af; }
-.text-input:focus { border-color: #3b82f6; background: white; }
-
-.drop-area {
-  border: 1.5px dashed #d1d5db;
-  border-radius: 8px;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: #f9fafb;
-  text-align: center;
-}
-.drop-area:hover {
-  border-color: #3b82f6;
-  background: white;
-}
-.drop-area.drag-over {
-  border-color: #3b82f6;
-  background: white;
-}
-.drop-area .drop-emoji { font-size: 28px; }
-.drop-area .drop-main { font-size: 13px; font-weight: 500; color: #1f2937; }
-.drop-area .drop-sub { font-size: 12px; color: #6b7280; }
-
-.tags-row {
-  display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; justify-content: center;
-}
-.mono-tag {
-  font-family: monospace;
-  font-size: 11px;
-  padding: 3px 7px;
-  border-radius: 3px;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
-  background: white;
-}
-
-.requirements {
-  margin-top: 10px;
-}
-
-.req-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-.req-row:last-child { border-bottom: none; }
-
-.req-check {
-  width: 18px; height: 18px;
-  border-radius: 4px;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 10px;
-  font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.req-key {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-.bottom-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.process-btn {
-  flex: 1;
-  padding: 12px 20px;
-  background: #6b7280;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.15s;
-}
-.process-btn:hover:not(:disabled) { background: #4b5563; }
-.process-btn:active:not(:disabled) { transform: scale(0.99); }
-.process-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.status-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #6b7280;
-  background: white;
-  white-space: nowrap;
-}
-.pulse {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #22c55e;
-}
-
-input[type="file"] { display: none; }
+  .upload-form { max-width: 700px; margin: 20px auto; }
+  .upload-form .form-row { margin-bottom: 15px; }
+  .upload-form label { display: block; font-weight: bold; margin-bottom: 5px; }
+  .upload-form input[type="text"],
+  .upload-form input[type="file"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+  .upload-form .help { color: #666; font-size: 0.85em; margin-top: 4px; }
+  .upload-form .requirements { background: #f0f7ff; border: 1px solid #b3d9ff; padding: 12px; border-radius: 4px; margin-top: 8px; font-size: 0.9em; color: #333; }
+  .upload-form .requirements li { margin: 4px 0; }
+  .upload-form .submit-row { margin-top: 20px; }
+  .upload-form .submit-row button { padding: 10px 30px; font-size: 1.1em; background: #417690; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  .upload-form .submit-row button:hover { background: #205067; }
+  .upload-form .submit-row button:disabled { background: #999; cursor: not-allowed; }
+  .error-msg { background: #fdd; border: 1px solid #c66; padding: 10px; border-radius: 4px; margin-bottom: 15px; color: #900; }
+  .validation-error { color: #c00; font-size: 0.9em; margin-top: 4px; display: none; }
 </style>
 
-<div class="root">
+<div class="upload-form">
+  <h2>Upload Integration Document</h2>
+  <p style="color:#666;">Upload a hospital integration document and an optional Postman collection. The agent will read the qikwell-dhanvantri codebase, generate the config JSON, and create a PR.</p>
+
+  {% if error %}
+    <div class="error-msg">{{ error }}</div>
+  {% endif %}
+
   <form method="post" enctype="multipart/form-data" id="upload-form">
     {% csrf_token %}
 
-    <div class="error-banner" id="error-banner"></div>
+    <div class="form-row">
+      <label>Hospital Name *</label>
+      <input type="text" name="hospital_name" id="hospital_name" placeholder="e.g. True Hospitals" required>
+    </div>
 
-    <div class="header">
-      <div class="header-icon">🏥</div>
-      <div class="header-text">
-        <h1>Upload Integration Document</h1>
-        <p>Upload a hospital integration document and an optional Postman collection. The agent will read the qikwell-dhanvantri codebase, generate the config JSON, and create a PR.</p>
+    <div class="form-row">
+      <label>Integration Document *</label>
+      <input type="file" name="integration_doc" id="integration_doc" accept=".md,.pdf,.txt,.doc,.docx" required>
+      <div class="help">Accepted: .md, .pdf, .txt (must follow the generic template format)</div>
+      <div class="validation-error" id="doc-error"></div>
+      <div class="requirements">
+        <strong>✓ Document must include:</strong>
+        <ul>
+          <li>API endpoints (GET /slots, POST /appointments, etc.)</li>
+          <li>Request/response schema examples with field descriptions</li>
+          <li>Authentication method (API key, OAuth, session token)</li>
+          <li>Field mapping comments (/Constant, /Mandatory, /send if not present)</li>
+          <li>Minimum 200 characters of actual API documentation</li>
+        </ul>
       </div>
     </div>
 
-    <div class="two-col">
-
-      <div class="card full">
-        <div class="card-label">Hospital Name <span class="req-pill">Required</span></div>
-        <input type="text" name="hospital_name" id="hospital_name" class="text-input" placeholder="e.g. True Hospitals" required />
-      </div>
-
-      <div class="card">
-        <div class="card-label">Integration Document <span class="req-pill">Required</span></div>
-        <div class="drop-area" id="doc-drop">
-          <div class="drop-emoji">📋</div>
-          <div class="drop-main">Drop file or click to browse</div>
-          <div class="drop-sub">Must follow the generic template format</div>
-          <div class="tags-row">
-            <span class="mono-tag">.md</span>
-            <span class="mono-tag">.pdf</span>
-            <span class="mono-tag">.txt</span>
-          </div>
-        </div>
-        <input type="file" name="integration_doc" id="integration_doc" accept=".md,.pdf,.txt,.doc,.docx" required />
-      </div>
-
-      <div class="card">
-        <div class="card-label">Postman Collection <span class="opt-pill">Optional</span></div>
-        <div class="drop-area" id="postman-drop">
-          <div class="drop-emoji">📮</div>
-          <div class="drop-main">Drop collection or browse</div>
-          <div class="drop-sub">Postman collection file</div>
-          <div class="tags-row">
-            <span class="mono-tag">.json</span>
-          </div>
-        </div>
-        <input type="file" name="postman_collection" id="postman_collection" accept=".json" />
-      </div>
-
-      <div class="card full">
-        <div class="card-label">Document Checklist</div>
-        <div class="requirements">
-          <div class="req-row">
-            <div class="req-check">✓</div>
-            <div><span class="req-key">API endpoints</span> — GET /slots, POST /appointments, etc.</div>
-          </div>
-          <div class="req-row">
-            <div class="req-check">✓</div>
-            <div><span class="req-key">Request/response schema</span> — examples with field descriptions</div>
-          </div>
-          <div class="req-row">
-            <div class="req-check">✓</div>
-            <div><span class="req-key">Authentication method</span> — API key, OAuth, or session token</div>
-          </div>
-          <div class="req-row">
-            <div class="req-check">✓</div>
-            <div><span class="req-key">Field mapping comments</span> — /Constant, /Mandatory, /send if not present</div>
-          </div>
-          <div class="req-row">
-            <div class="req-check">✓</div>
-            <div><span class="req-key">Minimum 200 characters</span> — of actual API documentation</div>
-          </div>
-        </div>
-      </div>
-
+    <div class="form-row">
+      <label>Postman Collection</label>
+      <input type="file" name="postman_collection" id="postman_collection" accept=".json">
+      <div class="help">Optional: .json Postman collection file</div>
     </div>
 
-    <div class="bottom-bar">
-      <div class="status-pill">
-        <div class="pulse"></div>
-        Agent ready
-      </div>
-      <button type="submit" id="submit-btn" class="process-btn" disabled>
-        Process Integration →
-      </button>
+    <div class="submit-row">
+      <button type="submit" id="submit-btn">Process Integration</button>
     </div>
   </form>
 </div>
 
 <script>
   const docInput = document.getElementById('integration_doc');
-  const postmanInput = document.getElementById('postman_collection');
+  const hospitalInput = document.getElementById('hospital_name');
   const submitBtn = document.getElementById('submit-btn');
-  const errorBanner = document.getElementById('error-banner');
-  const docDrop = document.getElementById('doc-drop');
-  const postmanDrop = document.getElementById('postman-drop');
+  const docError = document.getElementById('doc-error');
   const form = document.getElementById('upload-form');
 
   const MIN_DOC_LENGTH = 200;
 
-  function showError(message) {
-    errorBanner.textContent = message;
-    errorBanner.classList.add('show');
-  }
-
-  function hideError() {
-    errorBanner.classList.remove('show');
-  }
-
   function validateDoc() {
-    hideError();
+    docError.style.display = 'none';
+    docError.textContent = '';
 
     if (!docInput.files.length) {
-      submitBtn.disabled = true;
-      return;
+      submitBtn.disabled = false;
+      return true;
     }
 
     const file = docInput.files[0];
 
+    // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      showError('❌ File too large (max 10MB)');
+      docError.textContent = '❌ File too large (max 10MB)';
+      docError.style.display = 'block';
       submitBtn.disabled = true;
-      return;
+      return false;
     }
 
+    // Read and validate content
     const reader = new FileReader();
     reader.onload = function(e) {
       try {
         const content = e.target.result.trim();
 
+        // Check minimum length
         if (content.length < MIN_DOC_LENGTH) {
-          showError(`❌ Document too short (${content.length}/${MIN_DOC_LENGTH} chars). Please provide actual API documentation.`);
+          docError.textContent = `❌ Document too short (${content.length}/${MIN_DOC_LENGTH} chars). Please provide actual API documentation.`;
+          docError.style.display = 'block';
           submitBtn.disabled = true;
           return;
         }
 
-        const placeholders = ['test hospitals', 'placeholder', 'lorem ipsum', 'sample doc'];
+        // Check for placeholder content
+        const placeholders = ['test hospitals', 'placeholder', 'lorem ipsum', 'sample', 'example doc'];
         const lowerContent = content.toLowerCase();
-        if (content.length < 300 && placeholders.some(p => lowerContent.includes(p))) {
-          showError('❌ Please provide actual hospital API documentation, not placeholder text.');
+        if (lowerContent.length < 300 && placeholders.some(p => lowerContent.includes(p))) {
+          docError.textContent = '❌ Please provide actual hospital API documentation, not placeholder text.';
+          docError.style.display = 'block';
           submitBtn.disabled = true;
           return;
         }
 
+        // Check for required keywords
         const requiredKeywords = ['api', 'endpoint', 'request', 'response'];
         const hasKeywords = requiredKeywords.some(kw => lowerContent.includes(kw));
         if (!hasKeywords) {
-          showError('❌ Document must contain API details (endpoints, requests, responses).');
+          docError.textContent = '❌ Document must contain API details (endpoints, requests, responses).';
+          docError.style.display = 'block';
           submitBtn.disabled = true;
           return;
         }
 
+        // All validations passed
         submitBtn.disabled = false;
       } catch (err) {
-        showError('❌ Error reading file. Please try again.');
+        docError.textContent = '❌ Error reading file. Please try again.';
+        docError.style.display = 'block';
         submitBtn.disabled = true;
       }
     };
@@ -398,35 +140,19 @@ input[type="file"] { display: none; }
   }
 
   docInput.addEventListener('change', validateDoc);
-
-  docDrop.addEventListener('click', () => docInput.click());
-  postmanDrop.addEventListener('click', () => postmanInput.click());
-
-  [docDrop, postmanDrop].forEach(zone => {
-    zone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      zone.classList.add('drag-over');
-    });
-    zone.addEventListener('dragleave', () => {
-      zone.classList.remove('drag-over');
-    });
-    zone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      const input = zone === docDrop ? docInput : postmanInput;
-      input.files = e.dataTransfer.files;
-      const event = new Event('change', { bubbles: true });
-      input.dispatchEvent(event);
-    });
-  });
-
   form.addEventListener('submit', function(e) {
     if (submitBtn.disabled) {
       e.preventDefault();
-      showError('Please fix validation errors before submitting.');
+      alert('Please fix validation errors before submitting.');
     }
   });
 
+  // Initial state
   submitBtn.disabled = true;
+  docInput.addEventListener('change', function() {
+    if (!docInput.files.length) {
+      submitBtn.disabled = true;
+    }
+  });
 </script>
 {% endblock %}
