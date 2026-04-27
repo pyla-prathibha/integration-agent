@@ -113,12 +113,12 @@ class DocumentValidator:
 
 
 class AgentRunAdmin(admin.ModelAdmin):
-    list_display = ['id', 'hospital_name', 'status', 'triggered_by', 'created_at', 'pr_link', 'status_link']
+    list_display = ['id', 'hospital_name', 'status', 'triggered_by', 'created_at', 'pr_link']
     list_filter = ['status']
     readonly_fields = ['hospital_name', 'status', 'triggered_by', 'document_content',
                        'postman_content', 'generated_config', 'code_changes',
                        'agent_response', 'pr_url', 'branch_name', 'error_message',
-                       'created_at', 'updated_at', 'view_status_page']
+                       'created_at', 'updated_at']
 
     def pr_link(self, obj):
         if obj.pr_url:
@@ -127,18 +127,12 @@ class AgentRunAdmin(admin.ModelAdmin):
     pr_link.allow_tags = True
     pr_link.short_description = 'PR'
 
-    def status_link(self, obj):
-        from django.utils.html import format_html
-        return format_html('<a href="{}status/">View Status</a>', f'/admin/agent/agentrun/{obj.id}/')
-    status_link.short_description = 'Status'
-
-    def view_status_page(self, obj):
-        from django.utils.html import format_html
-        return format_html(
-            '<a href="/admin/agent/agentrun/{}/status/" style="padding: 8px 16px; background: #417690; color: white; border-radius: 4px; text-decoration: none;">View Status Page</a>',
-            obj.id
-        )
-    view_status_page.short_description = 'Status Page'
+    def change_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        if object_id:
+            extra_context['show_status_button'] = True
+            extra_context['status_url'] = f'/admin/agent/agentrun/{object_id}/status/'
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_urls(self):
         urls = super().get_urls()
