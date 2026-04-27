@@ -1,0 +1,100 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Run #{{ run.id }} - {{ run.hospital_name }}{% endblock %}
+
+{% block content %}
+<style>
+  .status-page { max-width: 900px; margin: 20px auto; }
+  .status-banner { padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+  .status-banner.processing { background: #d9edf7; border: 1px solid #bce8f1; color: #31708f; }
+  .status-banner.completed { background: #dff0d8; border: 1px solid #d6e9c6; color: #3c763d; }
+  .status-banner.failed { background: #f2dede; border: 1px solid #ebccd1; color: #a94442; }
+  .summary-table { width: 100%; margin-bottom: 20px; }
+  .summary-table td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+  .summary-table td:first-child { font-weight: bold; width: 150px; }
+  .config-box { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 0; margin-bottom: 20px; }
+  .config-box h3 { background: #417690; color: white; padding: 10px 15px; margin: 0; border-radius: 4px 4px 0 0; font-size: 1em; }
+  .config-box pre { max-height: 500px; overflow-y: auto; padding: 15px; margin: 0; white-space: pre-wrap; font-size: 0.85em; }
+  .btn { display: inline-block; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 0.9em; }
+  .btn-success { background: #5cb85c; color: white; }
+  .btn-default { background: #f5f5f5; border: 1px solid #ccc; color: #333; }
+  .btn-back { background: #417690; color: white; }
+</style>
+
+<div class="status-page">
+  <p><a href="{% url 'admin:agent_agentrun_changelist' %}" class="btn btn-back">Back to Runs</a>
+     <a href="{% url 'admin:agent_upload' %}" class="btn btn-default" style="margin-left:8px;">New Upload</a></p>
+
+  {% if run.status == 'processing' %}
+    <div class="status-banner processing">
+      <strong>Processing...</strong> The agent is reading the codebase, generating the config, and creating a PR. This may take 1-3 minutes.
+      <br><small>This page auto-refreshes every 10 seconds.</small>
+    </div>
+  {% elif run.status == 'completed' %}
+    <div class="status-banner completed">
+      <strong>Completed.</strong> Config generated and PR created.
+    </div>
+  {% elif run.status == 'failed' %}
+    <div class="status-banner failed">
+      <strong>Failed.</strong>
+      {% if "Validation failed" in run.error_message %}
+        <br><strong style="display:block; margin-top:8px;">{{ run.error_message }}</strong>
+        <div style="margin-top:12px; font-size:0.9em;">
+          <strong>Next steps:</strong>
+          <ol>
+            <li><a href="{% url 'admin:agent_upload' %}">Go back to upload</a></li>
+            <li>Review the requirements above</li>
+            <li>Provide actual hospital API documentation with endpoints, request/response examples, and authentication details</li>
+          </ol>
+        </div>
+      {% else %}
+        {{ run.error_message }}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <table class="summary-table">
+    <tr><td>Hospital</td><td>{{ run.hospital_name }}</td></tr>
+    <tr><td>Status</td><td>{{ run.status|upper }}</td></tr>
+    <tr><td>Triggered By</td><td>{{ run.triggered_by }}</td></tr>
+    <tr><td>Started At</td><td>{{ run.created_at }}</td></tr>
+    {% if run.branch_name %}
+      <tr><td>Branch</td><td><code>{{ run.branch_name }}</code></td></tr>
+    {% endif %}
+    {% if run.pr_url %}
+      <tr><td>Pull Request</td><td><a href="{{ run.pr_url }}" target="_blank" class="btn btn-success">View PR on GitHub</a></td></tr>
+    {% endif %}
+  </table>
+
+  {% if run.generated_config %}
+    <div class="config-box">
+      <h3>Generated Config
+        <a href="{% url 'admin:agent_download' run_id=run.id %}" class="btn btn-default" style="float:right; margin-top:-3px;">Download JSON</a>
+      </h3>
+      <pre>{{ run.generated_config }}</pre>
+    </div>
+  {% endif %}
+
+  {% if run.code_changes %}
+    <div class="config-box">
+      <h3>Code Changes</h3>
+      <pre>{{ run.code_changes }}</pre>
+    </div>
+  {% endif %}
+
+  {% if run.agent_response %}
+    <div class="config-box">
+      <h3 style="cursor:pointer;" onclick="document.getElementById('agent-response').style.display = document.getElementById('agent-response').style.display === 'none' ? 'block' : 'none';">
+        Agent Full Response (click to expand)
+      </h3>
+      <pre id="agent-response" style="display:none;">{{ run.agent_response }}</pre>
+    </div>
+  {% endif %}
+</div>
+
+{% if run.status == 'processing' %}
+<script>
+  setTimeout(function() { window.location.reload(); }, 10000);
+</script>
+{% endif %}
+{% endblock %}
