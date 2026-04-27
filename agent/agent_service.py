@@ -57,19 +57,37 @@ HOSPITAL API DOCUMENTATION:
     prompt += f"""
 STEP-BY-STEP INSTRUCTIONS:
 
-Step 1: Read reference configs from ADT-231-claude-agent branch
-- These files may not exist on master, but use them as reference
+Step 0: VALIDATE the document BEFORE doing anything else
+Check if the hospital API documentation contains ALL of these required fields:
+  - Hospital Name and Establishment ID
+  - Integration Type (Full Shadow / Practo Slots + HIS Push / One-way Push Only)
+  - Authentication details (auth type, headers, API key info)
+  - Base URL (production endpoint)
+  - At least one API specification with: HTTP method, endpoint path, request body sample, response sample
+  - Inline comments on request fields (e.g. /Constant, /Mandatory, /Practo field)
+  - Status mapping (HIS status → Practo status) if status API exists
+  - Terminal statuses (which statuses mean the appointment is done)
+
+If ANY of the above are missing, you MUST:
+  1. List all missing fields/sections clearly
+  2. Output the line: VALIDATION_FAILED: <comma-separated list of missing sections>
+  3. Do NOT create any branch, config file, or PR
+  4. STOP here — do not proceed to any further steps
+
+Only proceed to Step 1 if ALL required fields are present.
+
+Step 1: Read reference configs
 - Try to Read: lib/integration_agent/configs/rela_config.json (reference for POST APIs)
 - Try to Read: lib/integration_agent/configs/sarvodaya_config.json (reference for GET APIs)
 - If files don't exist, continue - the system prompt has config examples
 
-Step 2: Read implementation files from master
+Step 2: Read implementation files
 - Read: lib/integrate/implementations/qikwell_generic_shadow_impl.rb (focus on create_apt, fetch_uhid, sync_appointment_status methods)
 - Read: lib/utils/generic_parser.rb
 
 Step 3: Generate the config
 - Create a JSON config for {hospital_name}
-- Use Practo Slots + HIS Push pattern (Practo manages slots, push appointments to HIS, poll status)
+- Detect the integration pattern from the document
 - Follow the structure from the reference configs
 - Map fields from the API doc to config structure
 
@@ -117,6 +135,20 @@ Only use these tools: Read, Write, Bash, Glob, Grep
 
     full_response = '\n'.join(agent_response_parts)
 
+    # Check if agent flagged validation failure
+    if 'VALIDATION_FAILED' in full_response:
+        # Extract what's missing
+        validation_match = re.search(r'VALIDATION_FAILED:\s*(.+)', full_response)
+        missing = validation_match.group(1) if validation_match else 'Required sections missing'
+        return {
+            'config_json': '',
+            'agent_response': full_response,
+            'pr_url': '',
+            'branch_name': '',
+            'error': 'VALIDATION_FAILED',
+            'error_message': f'Document is incomplete. Missing: {missing}',
+        }
+
     # Check if config file was written
     config_path = os.path.join(REPO_DIR, 'lib', 'integration_agent', 'configs', f'{hospital_slug}_config.json')
     config_json = None
@@ -159,6 +191,15 @@ def run_agent_async(run_id):
                 document_content=run.document_content,
                 postman_content=run.postman_content,
             ))
+
+            # Check if agent validation failed
+            if result.get('error') == 'VALIDATION_FAILED':
+                run.status = 'failed'
+                run.error_message = result.get('error_message', 'Document validation failed')
+                run.agent_response = result['agent_response']
+                run.save()
+                logger.warning(f"Document validation failed for run #{run_id}: {result.get('error_message')}")
+                return
 
             run.status = 'completed'
             run.generated_config = result['config_json']
