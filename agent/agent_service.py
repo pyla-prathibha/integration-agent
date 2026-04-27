@@ -101,7 +101,9 @@ Step 5: Commit and push
 - Run: git checkout -b {hospital_slug}-integration
 - Run: git add lib/integration_agent/configs/{hospital_slug}_config.json lib/integration_agent/notes/{hospital_slug}-integration.md
 - Run: git commit -m "Add {hospital_name} integration config and notes"
-- Run: git push origin {hospital_slug}-integration
+- If any bash command fails (git checkout, git push, etc.), STOP and report the error clearly
+- Example error: "git push failed: fatal: could not read Username for 'https://github.com': No such device or address"
+- If you see a command failure, output: COMMAND_FAILED: <actual error message from the command>
 
 Step 6: Create PR against master
 - Run: gh pr create --base master --title "Add {hospital_name} integration config" --body "Generated config for {hospital_name}"
@@ -127,10 +129,18 @@ Only use these tools: Read, Write, Bash, Glob, Grep
                     if hasattr(block, 'text'):
                         agent_response_parts.append(block.text)
             if hasattr(message, 'result'):
-                agent_response_parts.append(str(message.result))
+                result_str = str(message.result)
+                agent_response_parts.append(result_str)
+                # Capture command failures/errors
+                if 'error' in result_str.lower() or 'failed' in result_str.lower() or 'exit code' in result_str.lower():
+                    logger.error(f"Agent command failed: {result_str}")
     except Exception as e:
-        logger.error(f"Agent query failed: {str(e)}")
-        agent_response_parts.append(f"ERROR: {str(e)}")
+        error_msg = str(e)
+        logger.error(f"Agent query failed: {error_msg}")
+        agent_response_parts.append(f"AGENT_ERROR: {error_msg}")
+        # Try to extract meaningful error info
+        if 'Command failed with exit code' in error_msg:
+            agent_response_parts.append("BASH_COMMAND_FAILED: The agent tried to run a command that failed. Check the git branch, permissions, or repository state.")
         raise
 
     full_response = '\n'.join(agent_response_parts)
@@ -147,6 +157,33 @@ Only use these tools: Read, Write, Bash, Glob, Grep
             'branch_name': '',
             'error': 'VALIDATION_FAILED',
             'error_message': f'Document is incomplete. Missing: {missing}',
+        }
+
+    # Check if agent flagged a command failure
+    if 'COMMAND_FAILED' in full_response:
+        # Extract the actual error message
+        command_match = re.search(r'COMMAND_FAILED:\s*(.+?)(?:\n|$)', full_response)
+        cmd_error = command_match.group(1) if command_match else 'Unknown command error'
+        return {
+            'config_json': '',
+            'agent_response': full_response,
+            'pr_url': '',
+            'branch_name': '',
+            'error': 'COMMAND_FAILED',
+            'error_message': f'Git command failed: {cmd_error}',
+        }
+
+    # Check for agent errors
+    if 'AGENT_ERROR' in full_response:
+        agent_error_match = re.search(r'AGENT_ERROR:\s*(.+?)(?:\n|$)', full_response)
+        agent_error = agent_error_match.group(1) if agent_error_match else 'Unknown agent error'
+        return {
+            'config_json': '',
+            'agent_response': full_response,
+            'pr_url': '',
+            'branch_name': '',
+            'error': 'AGENT_ERROR',
+            'error_message': f'Agent error: {agent_error}',
         }
 
     # Check if config file was written
@@ -192,13 +229,14 @@ def run_agent_async(run_id):
                 postman_content=run.postman_content,
             ))
 
-            # Check if agent validation failed
-            if result.get('error') == 'VALIDATION_FAILED':
+            # Check if agent reported any failure
+            error_type = result.get('error')
+            if error_type:
                 run.status = 'failed'
-                run.error_message = result.get('error_message', 'Document validation failed')
+                run.error_message = result.get('error_message', 'Unknown error')
                 run.agent_response = result['agent_response']
                 run.save()
-                logger.warning(f"Document validation failed for run #{run_id}: {result.get('error_message')}")
+                logger.warning(f"Agent run #{run_id} failed ({error_type}): {result.get('error_message')}")
                 return
 
             run.status = 'completed'
@@ -211,10 +249,25 @@ def run_agent_async(run_id):
         except Exception as e:
             import traceback
             error_detail = traceback.format_exc()
-            logger.error(f"Agent failed for run #{run_id}: {e}\n{error_detail}")
-            print(f"[AGENT ERROR] Run #{run_id}: {e}\n{error_detail}")
+            error_str = str(e)
+            logger.error(f"Agent failed for run #{run_id}: {error_str}\n{error_detail}")
+            print(f"[AGENT ERROR] Run #{run_id}: {error_str}\n{error_detail}")
+
             run.status = 'failed'
-            run.error_message = f"{type(e).__name__}: {str(e)}\n\n{error_detail}"
+
+            # Extract meaningful error message from the exception
+            error_message = error_str
+            if 'Command failed with exit code' in error_str:
+                error_message = "Bash command failed during git operations (e.g., git push, git commit). Check: 1) GitHub credentials 2) Repository permissions 3) Branch existence"
+            elif 'timeout' in error_str.lower():
+                error_message = "Agent timed out. The operation took too long. Try uploading a simpler document."
+            elif 'validation' in error_str.lower():
+                error_message = "Document validation failed. Check that all required sections are present."
+            else:
+                error_message = f"Agent error: {error_str}"
+
+            run.error_message = error_message
+            run.agent_response = error_detail  # Store traceback for debugging
             run.save()
 
     thread = threading.Thread(target=_run, daemon=True)
