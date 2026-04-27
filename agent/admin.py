@@ -22,9 +22,18 @@ def extract_document_text(file_obj):
             text_parts = []
             with pdfplumber.open(pdf_bytes) as pdf:
                 for page in pdf.pages:
+                    # Extract tables first (better structure preservation)
+                    tables = page.extract_tables()
+                    if tables:
+                        for table in tables:
+                            for row in table:
+                                text_parts.append(' | '.join(str(cell).strip() if cell else '' for cell in row))
+
+                    # Extract remaining text
                     text = page.extract_text()
                     if text:
                         text_parts.append(text)
+
             return '\n'.join(text_parts)
         except Exception as e:
             raise ValueError(f"Failed to extract PDF: {str(e)}")
