@@ -21,6 +21,20 @@ def load_system_prompt():
 
 async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
+    import subprocess
+
+    # Ensure we're on the optimise-fetch-uhid branch
+    try:
+        subprocess.run(
+            ['git', 'checkout', 'optimise-fetch-uhid'],
+            cwd=REPO_DIR,
+            capture_output=True,
+            check=True,
+            timeout=30
+        )
+    except Exception as e:
+        logger.warning(f"Could not checkout optimise-fetch-uhid branch: {e}")
+
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
 
