@@ -23,24 +23,24 @@ async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
     import subprocess
 
-    # Ensure we're on the ADT-231-claude-agent branch and up to date
+    # Ensure we're on the master branch and up to date
     try:
         subprocess.run(
-            ['git', 'checkout', 'ADT-231-claude-agent'],
+            ['git', 'checkout', 'master'],
             cwd=REPO_DIR,
             capture_output=True,
             check=True,
             timeout=30
         )
         subprocess.run(
-            ['git', 'pull', 'origin', 'ADT-231-claude-agent'],
+            ['git', 'pull', 'origin', 'master'],
             cwd=REPO_DIR,
             capture_output=True,
             check=True,
             timeout=30
         )
     except Exception as e:
-        logger.warning(f"Could not prepare ADT-231-claude-agent branch: {e}")
+        logger.warning(f"Could not prepare master branch: {e}")
 
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
@@ -57,11 +57,13 @@ HOSPITAL API DOCUMENTATION:
     prompt += f"""
 STEP-BY-STEP INSTRUCTIONS:
 
-Step 1: Read reference configs
-- Read: lib/integration_agent/configs/rela_config.json
-- Read: lib/integration_agent/configs/sarvodaya_config.json
+Step 1: Read reference configs from ADT-231-claude-agent branch
+- These files may not exist on master, but use them as reference
+- Try to Read: lib/integration_agent/configs/rela_config.json (reference for POST APIs)
+- Try to Read: lib/integration_agent/configs/sarvodaya_config.json (reference for GET APIs)
+- If files don't exist, continue - the system prompt has config examples
 
-Step 2: Read implementation files
+Step 2: Read implementation files from master
 - Read: lib/integrate/implementations/qikwell_generic_shadow_impl.rb (focus on create_apt, fetch_uhid, sync_appointment_status methods)
 - Read: lib/utils/generic_parser.rb
 
@@ -72,17 +74,17 @@ Step 3: Generate the config
 - Map fields from the API doc to config structure
 
 Step 4: Save the config
+- First, make sure directory exists: Run bash command: mkdir -p lib/integration_agent/configs
 - Use Write tool to save to: lib/integration_agent/configs/{hospital_slug}_config.json
 
 Step 5: Commit and push
-- Run: mkdir -p lib/integration_agent/configs
 - Run: git checkout -b {hospital_slug}-integration
 - Run: git add lib/integration_agent/configs/{hospital_slug}_config.json
 - Run: git commit -m "Add {hospital_name} integration config"
 - Run: git push origin {hospital_slug}-integration
 
-Step 6: Create PR
-- Run: gh pr create --base ADT-231-claude-agent --title "Add {hospital_name} integration config" --body "Generated config for {hospital_name}"
+Step 6: Create PR against master
+- Run: gh pr create --base master --title "Add {hospital_name} integration config" --body "Generated config for {hospital_name}"
 
 Only use these tools: Read, Write, Bash, Glob, Grep
 """
