@@ -26,8 +26,14 @@ async def call_agent(hospital_name, document_content, postman_content):
 
     # Simple prompt — just the doc + what to do
     prompt = f"""Generate a complete generic_config JSON for {hospital_name} integration.
-Write it to lib/integration_agent/configs/{hospital_slug}_config.json
-Then create a git branch, commit, push, and create a PR.
+
+STEPS:
+1. Create the lib/integration_agent/configs/ directory if it doesn't exist
+2. Write the config to lib/integration_agent/configs/{hospital_slug}_config.json
+3. Create a git branch named "{hospital_slug}-integration"
+4. Commit the config file with message "Add {hospital_name} integration config"
+5. Push the branch to origin
+6. Create a PR using: gh pr create --title "Add {hospital_name} integration config" --body "Auto-generated integration config for {hospital_name}"
 
 ## HOSPITAL INTEGRATION DOCUMENT
 
