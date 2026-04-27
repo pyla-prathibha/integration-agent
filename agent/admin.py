@@ -4,9 +4,36 @@ from django.urls import path
 from django import forms
 from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse
+import io
+import pdfplumber
 
 from .models import AgentRun
 from .agent_service import run_agent_async
+
+
+def extract_document_text(file_obj):
+    """Extract text from document based on file type."""
+    filename = file_obj.name.lower()
+
+    if filename.endswith('.pdf'):
+        try:
+            # Read PDF file
+            pdf_bytes = io.BytesIO(file_obj.read())
+            text_parts = []
+            with pdfplumber.open(pdf_bytes) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        text_parts.append(text)
+            return '\n'.join(text_parts)
+        except Exception as e:
+            raise ValueError(f"Failed to extract PDF: {str(e)}")
+    else:
+        # For .txt, .md, .doc, .docx — try UTF-8 decoding
+        try:
+            return file_obj.read().decode('utf-8', errors='replace')
+        except Exception as e:
+            raise ValueError(f"Failed to read file: {str(e)}")
 
 
 class DocumentValidator:
@@ -78,8 +105,14 @@ class AgentRunAdmin(admin.ModelAdmin):
                     'error': 'Please upload an integration document.',
                 })
 
-            doc_content = integration_doc.read().decode('utf-8', errors='replace')
-            postman_content = postman_collection.read().decode('utf-8', errors='replace') if postman_collection else ''
+            try:
+                doc_content = extract_document_text(integration_doc)
+                postman_content = postman_collection.read().decode('utf-8', errors='replace') if postman_collection else ''
+            except ValueError as e:
+                return TemplateResponse(request, 'agent/upload.html', {
+                    **self.admin_site.each_context(request),
+                    'error': f'Error processing file: {str(e)}',
+                })
 
             # Validate document content
             is_valid, error_msg = DocumentValidator.validate(doc_content)
