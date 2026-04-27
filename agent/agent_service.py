@@ -124,8 +124,9 @@ Only use these tools: Read, Write, Bash, Glob, Grep
 
     # Extract PR URL from agent output
     pr_url = None
+    # Match GitHub PR URLs: https://github.com/{owner}/{repo}/pull/{number}
     for line in full_response.split('\n'):
-        urls = re.findall(r'https://github\.com/[^\s\)]+/pull/\d+', line)
+        urls = re.findall(r'https://github\.com/[\w\-]+/[\w\-]+/pull/\d+', line)
         if urls:
             pr_url = urls[0]
             break
