@@ -12,38 +12,6 @@ REPO_DIR = '/Users/pylapratibha/Practo/qikwell-dhanvantri'
 PROMPT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'prompts', 'system_prompt.md')
 
 
-class DocumentValidator:
-    """Validates hospital API documentation before processing."""
-    MIN_LENGTH = 200
-    REQUIRED_KEYWORDS = ['api', 'endpoint', 'request', 'response']
-    PLACEHOLDER_KEYWORDS = ['test hospitals', 'placeholder', 'lorem ipsum', 'sample doc']
-
-    @classmethod
-    def validate(cls, document_content):
-        """
-        Validates document content. Returns (is_valid, error_message).
-        """
-        if not document_content or not document_content.strip():
-            return False, "Document content is empty. Please provide actual API documentation."
-
-        content = document_content.strip()
-
-        # Check minimum length
-        if len(content) < cls.MIN_LENGTH:
-            return False, f"Document is too short ({len(content)}/{cls.MIN_LENGTH} characters). Please provide complete API documentation with endpoints, schemas, and examples."
-
-        # Check for placeholder content
-        lower_content = content.lower()
-        if len(content) < 300 and any(p in lower_content for p in cls.PLACEHOLDER_KEYWORDS):
-            return False, "Document appears to be placeholder text. Please provide actual hospital API documentation."
-
-        # Check for required keywords (API details)
-        if not any(kw in lower_content for kw in cls.REQUIRED_KEYWORDS):
-            return False, "Document must contain API details (endpoints, requests, responses, authentication). Please check the requirements."
-
-        return True, None
-
-
 def load_system_prompt():
     if os.path.exists(PROMPT_FILE):
         with open(PROMPT_FILE, 'r') as f:
@@ -53,17 +21,6 @@ def load_system_prompt():
 
 async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
-    # Validate document before calling agent
-    is_valid, error_msg = DocumentValidator.validate(document_content)
-    if not is_valid:
-        return {
-            'config_json': '',
-            'agent_response': f'Validation failed: {error_msg}',
-            'pr_url': '',
-            'branch_name': '',
-            'error': 'VALIDATION_FAILED',
-        }
-
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
 
@@ -141,15 +98,6 @@ def run_agent_async(run_id):
                 document_content=run.document_content,
                 postman_content=run.postman_content,
             ))
-
-            # Check if validation failed
-            if result.get('error') == 'VALIDATION_FAILED':
-                run.status = 'failed'
-                run.error_message = result['agent_response']
-                run.agent_response = result['agent_response']
-                run.save()
-                logger.warning(f"Validation failed for run #{run_id}: {result['agent_response']}")
-                return
 
             run.status = 'completed'
             run.generated_config = result['config_json']
