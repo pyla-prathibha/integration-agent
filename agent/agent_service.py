@@ -45,15 +45,19 @@ async def call_agent(hospital_name, document_content, postman_content):
 {document_content}
 
 ## TASK:
-1. Read reference configs: lib/integration_agent/configs/rela_config.json and lib/integration_agent/configs/sarvodaya_config.json
-2. Read the implementation guide: lib/integrate/implementations/qikwell_generic_shadow_impl.rb
-3. Generate a complete generic_config.json for {hospital_name} (integration type is Practo Slots + HIS Push)
-4. Write config to: lib/integration_agent/configs/{hospital_slug}_config.json
-5. Commit: git add lib/integration_agent/configs/{hospital_slug}_config.json && git commit -m "Add {hospital_name} integration config"
-6. Push: git push origin optimise-fetch-uhid
-7. Create PR: gh pr create --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
+1. Read reference configs from: lib/integration_agent/configs/rela_config.json, lib/integration_agent/configs/sarvodaya_config.json
+2. Read codebase files: lib/integrate/implementations/qikwell_generic_shadow_impl.rb, lib/utils/generic_parser.rb
+3. Understand the integration pattern from documentation: Practo Slots + HIS Push
+4. Generate complete generic_config.json for {hospital_name}
+5. Write to: lib/integration_agent/configs/{hospital_slug}_config.json
+6. Bash commands only:
+   - git checkout -b {hospital_slug}-integration
+   - git add lib/integration_agent/configs/{hospital_slug}_config.json
+   - git commit -m "Add {hospital_name} integration config"
+   - git push origin {hospital_slug}-integration
+   - gh pr create --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
 
-Only use Read, Write, Edit, Bash, Glob, Grep tools. No other tools."""
+Use only: Read, Write, Bash, Glob, Grep tools."""
 
 ## HOSPITAL INTEGRATION DOCUMENT
 
