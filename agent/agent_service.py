@@ -73,14 +73,16 @@ Step 3: Generate the config
 - Follow the structure from the reference configs
 - Map fields from the API doc to config structure
 
-Step 4: Save the config
-- First, make sure directory exists: Run bash command: mkdir -p lib/integration_agent/configs
-- Use Write tool to save to: lib/integration_agent/configs/{hospital_slug}_config.json
+Step 4: Save the config and notes
+- Create directories: Run bash: mkdir -p lib/integration_agent/configs lib/integration_agent/notes
+- Use Write tool to save config to: lib/integration_agent/configs/{hospital_slug}_config.json
+- Use Write tool to save notes to: lib/integration_agent/notes/{hospital_slug}-integration.md
+  (The notes should include: integration pattern, API details, setup checklist, troubleshooting tips)
 
 Step 5: Commit and push
 - Run: git checkout -b {hospital_slug}-integration
-- Run: git add lib/integration_agent/configs/{hospital_slug}_config.json
-- Run: git commit -m "Add {hospital_name} integration config"
+- Run: git add lib/integration_agent/configs/{hospital_slug}_config.json lib/integration_agent/notes/{hospital_slug}-integration.md
+- Run: git commit -m "Add {hospital_name} integration config and notes"
 - Run: git push origin {hospital_slug}-integration
 
 Step 6: Create PR against master
