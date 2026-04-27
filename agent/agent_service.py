@@ -23,24 +23,24 @@ async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
     import subprocess
 
-    # Ensure we're on the optimise-fetch-uhid branch and up to date
+    # Ensure we're on the ADT-231-claude-agent branch and up to date
     try:
         subprocess.run(
-            ['git', 'checkout', 'optimise-fetch-uhid'],
+            ['git', 'checkout', 'ADT-231-claude-agent'],
             cwd=REPO_DIR,
             capture_output=True,
             check=True,
             timeout=30
         )
         subprocess.run(
-            ['git', 'pull', 'origin', 'optimise-fetch-uhid'],
+            ['git', 'pull', 'origin', 'ADT-231-claude-agent'],
             cwd=REPO_DIR,
             capture_output=True,
             check=True,
             timeout=30
         )
     except Exception as e:
-        logger.warning(f"Could not prepare optimise-fetch-uhid branch: {e}")
+        logger.warning(f"Could not prepare ADT-231-claude-agent branch: {e}")
 
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '_')
@@ -63,7 +63,7 @@ async def call_agent(hospital_name, document_content, postman_content):
    - git add lib/integration_agent/configs/{hospital_slug}_config.json
    - git commit -m "Add {hospital_name} integration config"
    - git push origin {hospital_slug}-integration
-   - gh pr create --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
+   - gh pr create --base ADT-231-claude-agent --title "Add {hospital_name} integration config" --body "Config for {hospital_name}"
 
 Use only: Read, Write, Bash, Glob, Grep tools."""
 
