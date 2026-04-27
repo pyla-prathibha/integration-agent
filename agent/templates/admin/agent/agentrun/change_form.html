@@ -1,0 +1,12 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+  {% if show_status_button %}
+    <div style="margin-bottom: 20px;">
+      <a href="{{ status_url }}" class="button" style="background-color: #417690; padding: 10px 20px; text-decoration: none; color: white; border-radius: 4px; display: inline-block;">
+        View Status Page
+      </a>
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
