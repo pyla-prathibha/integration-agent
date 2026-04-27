@@ -43,7 +43,7 @@ async def call_agent(hospital_name, document_content, postman_content):
         logger.warning(f"Could not prepare master branch: {e}")
 
     system_prompt = load_system_prompt()
-    hospital_slug = hospital_name.lower().replace(' ', '_')
+    hospital_slug = hospital_name.lower().replace(' ', '-')
 
     # Simplified prompt with explicit instructions
     prompt = f"""Generate a generic_config JSON for {hospital_name} hospital integration.
