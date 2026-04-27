@@ -46,14 +46,31 @@ def extract_document_text(file_obj):
 
 
 class DocumentValidator:
-    """Validates hospital API documentation before processing."""
+    """Validates hospital API documentation against the generic HIS template."""
     MIN_LENGTH = 200
     PLACEHOLDER_KEYWORDS = ['test hospitals', 'placeholder', 'lorem ipsum', 'sample doc']
+
+    # Required sections that must be present in the document
+    REQUIRED_SECTIONS = [
+        {'name': 'Overview', 'keywords': ['hospital name', 'integration type', 'establishment id']},
+        {'name': 'Authentication', 'keywords': ['auth type', 'api key', 'authentication']},
+        {'name': 'Base URL', 'keywords': ['base url', 'production', 'https://']},
+        {'name': 'Create Appointment API', 'keywords': ['create appointment', 'post', 'endpoint']},
+    ]
+
+    # Optional but recommended sections
+    RECOMMENDED_SECTIONS = [
+        {'name': 'Status Mapping', 'keywords': ['status mapping', 'status value', 'practo status']},
+        {'name': 'Default/Fallback Values', 'keywords': ['default', 'fallback']},
+        {'name': 'Terminal Statuses', 'keywords': ['terminal status', 'terminal statuses']},
+        {'name': 'Request/Response Samples', 'keywords': ['request body', 'response', 'sample']},
+    ]
 
     @classmethod
     def validate(cls, document_content):
         """
-        Validates document content. Returns (is_valid, error_message).
+        Validates document content against the generic template.
+        Returns (is_valid, error_message).
         """
         if not document_content or not document_content.strip():
             return False, "Document content is empty. Please provide actual API documentation."
@@ -69,6 +86,29 @@ class DocumentValidator:
         if len(content) < 300 and any(p in lower_content for p in cls.PLACEHOLDER_KEYWORDS):
             return False, "Document appears to be placeholder text. Please provide actual hospital API documentation."
 
+        # Check for unfilled template placeholders
+        bracket_placeholders = lower_content.count('[e.g.') + lower_content.count('[choose:') + lower_content.count('[yes / no]')
+        if bracket_placeholders > 5:
+            return False, f"Document still has {bracket_placeholders} unfilled template placeholders (e.g. [e.g. ...], [Choose: ...], [Yes / No]). Please fill in all sections before uploading."
+
+        # Validate required sections from generic template
+        missing_sections = []
+        for section in cls.REQUIRED_SECTIONS:
+            found = any(kw in lower_content for kw in section['keywords'])
+            if not found:
+                missing_sections.append(section['name'])
+
+        if missing_sections:
+            return False, f"Document is missing required sections: {', '.join(missing_sections)}. Please use the generic HIS Integration Document Template."
+
+        # Warn about missing recommended sections (still allow submission)
+        missing_recommended = []
+        for section in cls.RECOMMENDED_SECTIONS:
+            found = any(kw in lower_content for kw in section['keywords'])
+            if not found:
+                missing_recommended.append(section['name'])
+
+        # All validations passed
         return True, None
 
 
