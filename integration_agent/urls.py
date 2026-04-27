@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from agent import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('download-template/', views.download_template, name='download_template'),
 ]

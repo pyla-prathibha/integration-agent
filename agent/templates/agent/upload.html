@@ -19,11 +19,18 @@
   .upload-form .submit-row button:disabled { background: #999; cursor: not-allowed; }
   .error-msg { background: #fdd; border: 1px solid #c66; padding: 10px; border-radius: 4px; margin-bottom: 15px; color: #900; }
   .validation-error { color: #c00; font-size: 0.9em; margin-top: 4px; display: none; }
+  .template-download { background: #e8f4f8; border: 1px solid #b3d9e8; padding: 12px; border-radius: 4px; margin-bottom: 20px; }
+  .template-download a { color: #417690; text-decoration: none; font-weight: bold; }
+  .template-download a:hover { text-decoration: underline; }
 </style>
 
 <div class="upload-form">
   <h2>Upload Integration Document</h2>
   <p style="color:#666;">Upload a hospital integration document and an optional Postman collection. The agent will read the qikwell-dhanvantri codebase, generate the config JSON, and create a PR.</p>
+
+  <div class="template-download">
+    <strong>📄 Need a template?</strong> Download the generic <a href="{% url 'download_template' %}">HIS Integration Document Template</a> to get started.
+  </div>
 
   {% if error %}
     <div class="error-msg">{{ error }}</div>
