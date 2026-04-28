@@ -37,14 +37,30 @@
   {% elif run.status == 'failed' %}
     <div class="status-banner failed">
       <strong>Failed.</strong>
-      {% if "Validation failed" in run.error_message %}
-        <br><strong style="display:block; margin-top:8px;">{{ run.error_message }}</strong>
+      {% if "VALIDATION_FAILED" in run.error_message %}
+        <div style="margin-top:12px; background:#fff; border:1px solid #ebccd1; border-radius:4px; padding:15px;">
+          <pre style="white-space:pre-wrap; font-size:0.85em; margin:0; color:#a94442; font-family:inherit;">{{ run.error_message }}</pre>
+        </div>
         <div style="margin-top:12px; font-size:0.9em;">
-          <strong>Next steps:</strong>
+          <strong>What to do:</strong>
           <ol>
-            <li><a href="{% url 'admin:agent_upload' %}">Go back to upload</a></li>
-            <li>Review the requirements above</li>
-            <li>Provide actual hospital API documentation with endpoints, request/response examples, and authentication details</li>
+            <li>Read the missing fields listed above carefully</li>
+            <li>Update your document to include ALL required sections with actual data (not placeholders)</li>
+            <li>Download the <a href="{% url 'download_template' %}">HIS Integration Document Template</a> if you need the correct format</li>
+            <li><a href="{% url 'admin:agent_upload' %}"><strong>Re-upload the corrected document</strong></a></li>
+          </ol>
+        </div>
+      {% elif "CONFIG_VALIDATION_FAILED" in run.error_message or "schema validation failed" in run.error_message %}
+        <div style="margin-top:12px; background:#fff; border:1px solid #ebccd1; border-radius:4px; padding:15px;">
+          <strong>The agent generated a config, but it failed server-side schema validation:</strong>
+          <pre style="white-space:pre-wrap; font-size:0.85em; margin:8px 0 0; color:#a94442;">{{ run.error_message }}</pre>
+        </div>
+        <div style="margin-top:12px; font-size:0.9em;">
+          <strong>What to do:</strong>
+          <ol>
+            <li>Review the validation errors above</li>
+            <li>Check if the API documentation has all required fields with correct formats</li>
+            <li><a href="{% url 'admin:agent_upload' %}"><strong>Re-upload with a more complete document</strong></a></li>
           </ol>
         </div>
       {% else %}

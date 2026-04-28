@@ -1,10 +1,11 @@
 import asyncio
 import os
 import re
+import sys
 import logging
 import threading
 
-from claude_agent_sdk import query, ClaudeAgentOptions
+from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 
 logger = logging.getLogger(__name__)
 
@@ -23,24 +24,48 @@ async def call_agent(hospital_name, document_content, postman_content):
     """Run the Claude agent against the local qikwell-dhanvantri repo."""
     import subprocess
 
-    # Ensure we're on the master branch and up to date
+    # Ensure we're on a clean master branch before the agent starts
     try:
+        # Discard any uncommitted changes from previous runs
         subprocess.run(
+            ['git', 'checkout', '.'],
+            cwd=REPO_DIR,
+            capture_output=True,
+            timeout=30
+        )
+        # Remove any untracked files left by previous runs (configs, notes)
+        subprocess.run(
+            ['git', 'clean', '-fd', 'lib/integration_agent/'],
+            cwd=REPO_DIR,
+            capture_output=True,
+            timeout=30
+        )
+        # Switch to master
+        result = subprocess.run(
             ['git', 'checkout', 'master'],
             cwd=REPO_DIR,
             capture_output=True,
+            text=True,
             check=True,
             timeout=30
         )
-        subprocess.run(
+        # Pull latest
+        result = subprocess.run(
             ['git', 'pull', 'origin', 'master'],
             cwd=REPO_DIR,
             capture_output=True,
+            text=True,
             check=True,
             timeout=30
         )
-    except Exception as e:
-        logger.warning(f"Could not prepare master branch: {e}")
+        logger.info("Successfully checked out and updated master branch")
+    except subprocess.CalledProcessError as e:
+        error_detail = e.stderr or e.stdout or str(e)
+        logger.error(f"Failed to prepare master branch: {error_detail}")
+        raise RuntimeError(f"Cannot start agent: failed to checkout clean master branch. Error: {error_detail}")
+    except subprocess.TimeoutExpired:
+        logger.error("Git operation timed out while preparing master branch")
+        raise RuntimeError("Cannot start agent: git operation timed out. Check network connectivity and repo state.")
 
     system_prompt = load_system_prompt()
     hospital_slug = hospital_name.lower().replace(' ', '-')
@@ -57,22 +82,44 @@ HOSPITAL API DOCUMENTATION:
     prompt += f"""
 STEP-BY-STEP INSTRUCTIONS:
 
-Step 0: VALIDATE the document BEFORE doing anything else
-Check if the hospital API documentation contains ALL of these required fields:
-  - Hospital Name and Establishment ID
-  - Integration Type (Full Shadow / Practo Slots + HIS Push / One-way Push Only)
-  - Authentication details (auth type, headers, API key info)
-  - Base URL (production endpoint)
-  - At least one API specification with: HTTP method, endpoint path, request body sample, response sample
-  - Inline comments on request fields (e.g. /Constant, /Mandatory, /Practo field)
-  - Status mapping (HIS status → Practo status) if status API exists
-  - Terminal statuses (which statuses mean the appointment is done)
+Step 0: STRICT VALIDATION — REJECT incomplete documents BEFORE doing anything else
+
+Carefully check the hospital API documentation for ALL of these required fields:
+
+  1. Hospital Name and Establishment ID
+  2. Integration Type — must explicitly state one of: "Full Shadow" / "Practo Slots + HIS Push" / "One-way Push Only"
+  3. Authentication details — must include: auth type (API Key / OAuth / Bearer Token), header name, and sample key/token value
+  4. Base URL — full production endpoint (e.g. https://api.hospital.com/v1), NOT a placeholder like "https://example.com"
+  5. At least one complete API specification with ALL of:
+     a. HTTP method (GET/POST/PUT/PATCH)
+     b. Full endpoint path (e.g. /api/v1/appointments)
+     c. Complete request body sample (actual JSON with field names and sample values, NOT just field descriptions)
+     d. Complete response body sample (actual JSON showing success response structure)
+  6. Inline comments on request fields — at least some fields must be annotated with: /Constant, /Mandatory, /Optional, /Practo field, /we can send dummy, or /send X if not present
+  7. Status mapping — a table or list mapping HIS status values to Practo statuses (e.g. "Confirmed" → "confirmed", "Cancelled" → "cancelled")
+  8. Terminal statuses — explicit list of which HIS statuses mean the appointment lifecycle is complete (e.g. "Completed", "Cancelled", "No Show")
 
 If ANY of the above are missing, you MUST:
-  1. List all missing fields/sections clearly
-  2. Output the line: VALIDATION_FAILED: <comma-separated list of missing sections>
-  3. Do NOT create any branch, config file, or PR
+  1. Do NOT create any branch, config file, or PR
+  2. List EVERY missing field with a clear explanation of what is expected
+  3. Output a structured response in this EXACT format:
+
+VALIDATION_FAILED: <comma-separated list of missing sections>
+
+MISSING FIELDS DETAILS:
+- [Field Name]: <what is missing and what you need>
+  Expected format: <show the exact format or example of what should be provided>
+
+Example of a valid document section for each missing field:
+<provide a short example snippet for each missing field so the user knows exactly what to add>
+
+ACTION REQUIRED:
+Please re-upload the document after adding the missing sections listed above.
+You can download the HIS Integration Document Template from the upload page for the correct format.
+
   4. STOP here — do not proceed to any further steps
+
+Only proceed to Step 1 if ALL 8 required fields are present and contain actual data (not placeholders).
 
 Only proceed to Step 1 if ALL required fields are present.
 
@@ -82,7 +129,7 @@ Step 1: Read reference configs
 - If files don't exist, continue - the system prompt has config examples
 
 Step 2: Read implementation files
-- Read: lib/integrate/implementations/qikwell_generic_shadow_impl.rb (focus on create_apt, fetch_uhid, sync_appointment_status methods)
+- Read: lib/integrate/implementations/qikwell_generic_shadow_impl.rb (focus on ALL methods: create_apt, cancel_apt, reschedule_apt, fetch_uhid, sync_appointment_status, sync_bulk_appointments_status, sync_available_doctor_slots, sync_doctor_slots, sync_dynamic_auth_token, fetch_followup_apts, sync_followup_apt_status, hold_appointment_slot, register_patient, create_lead, validate_mobile, fetch_slots, fetch_bulk_slots, get_appointment_patient_details)
 - Read: lib/utils/generic_parser.rb
 
 Step 3: Generate the config
@@ -91,11 +138,35 @@ Step 3: Generate the config
 - Follow the structure from the reference configs
 - Map fields from the API doc to config structure
 
+Step 3.5: MANDATORY CODE VERIFICATION (DO NOT SKIP)
+Think like an integration engineer: "If I deploy this config, what will happen in production?"
+
+For EVERY operation you set as required:false, verify the codebase handles it safely:
+
+A) If get_slots.required is false (Practo owns slots):
+   - Read sync_doctor_slots method in qikwell_generic_shadow_impl.rb
+   - Search for the guard: "!api_builder['required']" or "api_builder.blank?"
+   - If the guard is MISSING, you MUST add it. Without it, when a patient opens a doctor's profile,
+     the on-demand sync will create BlockSlots and block ALL Practo slots — patients see zero availability.
+   - Also verify sync_available_doctor_slots has the same guard.
+   - Output: "SLOT GUARD CHECK: [method_name] — guard [present/MISSING] at line [N]"
+
+B) For appointment_status: read sync_appointment_status method
+   - Check if request_data hash has ALL fields the hospital's status API needs
+   - If hospital uses Practo appointment ID (not HMS booking ID), verify 'appointment_qikwell_id' is in request_data
+   - If missing, add it: 'appointment_qikwell_id' => appointment.id
+
+C) For create_appointment: read create_apt method
+   - Verify all request_params data sources exist in the request_data hash
+   - Read get_appointment_patient_details to confirm patient field availability
+
+If code changes are needed, make them NOW before saving the config.
+
 Step 4: Save the config and notes
 - Create directories: Run bash: mkdir -p lib/integration_agent/configs lib/integration_agent/notes
 - Use Write tool to save config to: lib/integration_agent/configs/{hospital_slug}_config.json
 - Use Write tool to save notes to: lib/integration_agent/notes/{hospital_slug}-integration.md
-  (The notes should include: integration pattern, API details, setup checklist, troubleshooting tips)
+  (The notes should include: integration pattern, code verification results, API details, setup checklist)
 
 Step 5: Commit and push
 - Run: git checkout -b {hospital_slug}-integration
@@ -112,18 +183,32 @@ Only use these tools: Read, Write, Bash, Glob, Grep
 """
 
     agent_response_parts = []
+    turn_count = 0
 
     try:
         async for message in query(
             prompt=prompt,
             options=ClaudeAgentOptions(
+                model="claude-haiku-4-5",
                 system_prompt=system_prompt,
                 allowed_tools=["Read", "Write", "Bash", "Glob", "Grep"],
                 permission_mode="bypassPermissions",
                 cwd=REPO_DIR,
-                max_turns=30,
+                max_turns=35,
             ),
         ):
+            turn_count += 1
+            msg_type = type(message).__name__
+            if isinstance(message, ResultMessage):
+                actual_turns = message.num_turns
+                cost = message.total_cost_usd
+                print(f"[AGENT] Done — {actual_turns} actual turns, ${cost:.4f} cost", flush=True, file=sys.stderr)
+            elif hasattr(message, 'content'):
+                # Count tool uses in this message
+                tool_uses = [b for b in message.content if hasattr(b, 'name')]
+                if tool_uses:
+                    tool_names = [b.name for b in tool_uses]
+                    print(f"[AGENT] msg {turn_count} ({msg_type}) — tools: {', '.join(tool_names)}", flush=True, file=sys.stderr)
             if hasattr(message, 'content'):
                 for block in message.content:
                     if hasattr(block, 'text'):
@@ -131,37 +216,37 @@ Only use these tools: Read, Write, Bash, Glob, Grep
             if hasattr(message, 'result'):
                 result_str = str(message.result)
                 agent_response_parts.append(result_str)
-                # Capture command failures/errors
-                if 'error' in result_str.lower() or 'failed' in result_str.lower() or 'exit code' in result_str.lower():
+                if 'error' in result_str.lower() or 'failed' in result_str.lower():
                     logger.error(f"Agent command failed: {result_str}")
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Agent query failed: {error_msg}")
-        agent_response_parts.append(f"AGENT_ERROR: {error_msg}")
-        # Try to extract meaningful error info
-        if 'Command failed with exit code' in error_msg:
-            agent_response_parts.append("BASH_COMMAND_FAILED: The agent tried to run a command that failed. Check the git branch, permissions, or repository state.")
+        print(f"[AGENT] Failed after {turn_count} messages: {error_msg}", flush=True, file=sys.stderr)
+        logger.error(f"Agent query failed after {turn_count} messages: {error_msg}")
         raise
-
     full_response = '\n'.join(agent_response_parts)
 
-    # Check if agent flagged validation failure
-    if 'VALIDATION_FAILED' in full_response:
-        # Extract what's missing
+    # Check for validation failure (catch multiple phrasings the agent may use)
+    lower_response = full_response.lower()
+    is_validation_failure = (
+        'VALIDATION_FAILED' in full_response
+        or 'incomplete document' in lower_response
+        or ('missing fields' in lower_response and 'action required' in lower_response)
+    )
+    if is_validation_failure:
         validation_match = re.search(r'VALIDATION_FAILED:\s*(.+)', full_response)
         missing = validation_match.group(1) if validation_match else 'Required sections missing'
+        detailed_feedback = full_response.strip()
         return {
             'config_json': '',
             'agent_response': full_response,
             'pr_url': '',
             'branch_name': '',
             'error': 'VALIDATION_FAILED',
-            'error_message': f'Document is incomplete. Missing: {missing}',
+            'error_message': detailed_feedback,
         }
 
-    # Check if agent flagged a command failure
+    # Check for command failure in text
     if 'COMMAND_FAILED' in full_response:
-        # Extract the actual error message
         command_match = re.search(r'COMMAND_FAILED:\s*(.+?)(?:\n|$)', full_response)
         cmd_error = command_match.group(1) if command_match else 'Unknown command error'
         return {
@@ -173,40 +258,37 @@ Only use these tools: Read, Write, Bash, Glob, Grep
             'error_message': f'Git command failed: {cmd_error}',
         }
 
-    # Check for agent errors
-    if 'AGENT_ERROR' in full_response:
-        agent_error_match = re.search(r'AGENT_ERROR:\s*(.+?)(?:\n|$)', full_response)
-        agent_error = agent_error_match.group(1) if agent_error_match else 'Unknown agent error'
-        return {
-            'config_json': '',
-            'agent_response': full_response,
-            'pr_url': '',
-            'branch_name': '',
-            'error': 'AGENT_ERROR',
-            'error_message': f'Agent error: {agent_error}',
-        }
-
-    # Check if config file was written
+    # Try to read config from file
     config_path = os.path.join(REPO_DIR, 'lib', 'integration_agent', 'configs', f'{hospital_slug}_config.json')
     config_json = None
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config_json = f.read()
 
-    # Extract PR URL from agent output
+    # Extract PR URL from text
     pr_url = None
-    # Match GitHub PR URLs: https://github.com/{owner}/{repo}/pull/{number}
     for line in full_response.split('\n'):
         urls = re.findall(r'https://github\.com/[\w\-]+/[\w\-]+/pull/\d+', line)
         if urls:
             pr_url = urls[0]
             break
 
-    # Extract branch name
+    # Extract branch name from text
     branch_name = None
     branch_match = re.search(r'[\w-]+-integration(?:-v\d+)?', full_response)
     if branch_match:
         branch_name = branch_match.group(0)
+
+    # Fallback: if no config generated and no PR created, something went wrong
+    if not config_json and not pr_url:
+        return {
+            'config_json': '',
+            'agent_response': full_response,
+            'pr_url': '',
+            'branch_name': '',
+            'error': 'NO_OUTPUT',
+            'error_message': 'Agent completed but did not generate a config or create a PR. Check the agent response for details.',
+        }
 
     return {
         'config_json': config_json or '',
