@@ -18,7 +18,8 @@
   .btn { display: inline-block; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 0.9em; }
   .btn-success { background: #5cb85c; color: white; }
   .btn-default { background: #f5f5f5; border: 1px solid #ccc; color: #333; }
-  .btn-back { background: #417690; color: white; }
+  .btn-back { background: #417690; color: white !important; }
+  .btn-back:visited, .btn-back:hover { color: white !important; }
 </style>
 
 <div class="status-page">
@@ -41,15 +42,10 @@
         <div style="margin-top:12px; background:#fff; border:1px solid #ebccd1; border-radius:4px; padding:15px;">
           <pre style="white-space:pre-wrap; font-size:0.85em; margin:0; color:#a94442; font-family:inherit;">{{ run.error_message }}</pre>
         </div>
-        <div style="margin-top:12px; font-size:0.9em;">
-          <strong>What to do:</strong>
-          <ol>
-            <li>Read the missing fields listed above carefully</li>
-            <li>Update your document to include ALL required sections with actual data (not placeholders)</li>
-            <li>Download the <a href="{% url 'download_template' %}">HIS Integration Document Template</a> if you need the correct format</li>
-            <li><a href="{% url 'admin:agent_upload' %}"><strong>Re-upload the corrected document</strong></a></li>
-          </ol>
-        </div>
+        <p style="margin-top:12px;">
+          <a href="{% url 'admin:agent_upload' %}" class="btn btn-back"><strong>Re-upload corrected document</strong></a>
+          <a href="{% url 'download_template' %}" class="btn btn-default" style="margin-left:8px;">Download Template</a>
+        </p>
       {% elif "CONFIG_VALIDATION_FAILED" in run.error_message or "schema validation failed" in run.error_message %}
         <div style="margin-top:12px; background:#fff; border:1px solid #ebccd1; border-radius:4px; padding:15px;">
           <strong>The agent generated a config, but it failed server-side schema validation:</strong>

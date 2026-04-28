@@ -235,7 +235,16 @@ Only use these tools: Read, Write, Bash, Glob, Grep
     if is_validation_failure:
         validation_match = re.search(r'VALIDATION_FAILED:\s*(.+)', full_response)
         missing = validation_match.group(1) if validation_match else 'Required sections missing'
-        detailed_feedback = full_response.strip()
+
+        # Extract just the first ACTION REQUIRED block (stop at next heading, horizontal rule, or duplicate)
+        action_match = re.search(
+            r'(#{0,3}\s*ACTION REQUIRED:?\s*\n.+?)(?=\n#{1,3}\s|\n---|\nI[\'\u2019]ll|\nI need to|\nLet me|\nVALIDATION|$)',
+            full_response, re.DOTALL
+        )
+        if action_match:
+            detailed_feedback = f"VALIDATION_FAILED: {missing}\n\n{action_match.group(1).strip()}"
+        else:
+            detailed_feedback = f"VALIDATION_FAILED: {missing}"
         return {
             'config_json': '',
             'agent_response': full_response,
